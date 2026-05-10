@@ -1,0 +1,4 @@
+ __pycache__/
+  .claude/
+  .last_session
+  example_bank.db
