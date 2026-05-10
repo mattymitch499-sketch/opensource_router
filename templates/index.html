@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenSource Router</title>
+    <style>
+        /* --- Reset and base --- */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- Top bar --- */
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 20px;
+            background: #16213e;
+            border-bottom: 1px solid #0f3460;
+        }
+
+        .topbar h1 {
+            font-size: 18px;
+            color: #e94560;
+            font-weight: 600;
+        }
+
+        .topbar-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .topbar button {
+            background: #0f3460;
+            color: #e0e0e0;
+            border: 1px solid #1a1a4e;
+            padding: 6px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: background 0.2s;
+        }
+
+        .topbar button:hover { background: #e94560; }
+
+        /* --- Project dir input --- */
+        .project-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 20px;
+            background: #16213e;
+            border-bottom: 1px solid #0f3460;
+            font-size: 13px;
+        }
+
+        .project-bar label {
+            color: #888;
+            white-space: nowrap;
+        }
+
+        .project-bar input {
+            flex: 1;
+            background: #1a1a2e;
+            border: 1px solid #0f3460;
+            color: #e0e0e0;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-family: monospace;
+        }
+
+        .project-bar input:focus {
+            outline: none;
+            border-color: #e94560;
+        }
+
+        /* --- Chat area --- */
+        .chat-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        /* --- Message bubbles --- */
+        .message {
+            max-width: 85%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-size: 14px;
+        }
+
+        .message.user {
+            align-self: flex-end;
+            background: #0f3460;
+            color: #e0e0e0;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.assistant {
+            align-self: flex-start;
+            background: #222244;
+            color: #e0e0e0;
+            border-bottom-left-radius: 4px;
+        }
+
+        /* --- Model badge --- */
+        .model-badge {
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .model-badge.deepseek {
+            background: #1b5e20;
+            color: #81c784;
+        }
+
+        .model-badge.claude {
+            background: #4a148c;
+            color: #ce93d8;
+        }
+
+        .model-badge.router {
+            background: #b71c1c;
+            color: #ef9a9a;
+        }
+
+        /* --- Score badge --- */
+        .score-badge {
+            display: inline-block;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-left: 6px;
+            background: #0f3460;
+            color: #64b5f6;
+        }
+
+        /* --- Review badge --- */
+        .review-badge {
+            display: inline-block;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-left: 6px;
+        }
+
+        .review-badge.passed {
+            background: #1b5e20;
+            color: #81c784;
+        }
+
+        .review-badge.failed {
+            background: #b71c1c;
+            color: #ef9a9a;
+        }
+
+        /* --- Status messages --- */
+        .status-line {
+            font-size: 12px;
+            color: #888;
+            padding: 4px 0;
+            font-style: italic;
+        }
+
+        /* --- Loading spinner --- */
+        .spinner {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid #888;
+            border-top: 2px solid #e94560;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 6px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* --- Code blocks inside messages --- */
+        .message pre {
+            background: #111;
+            padding: 10px;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 8px 0;
+            font-size: 13px;
+        }
+
+        .message code {
+            font-family: "Cascadia Code", "Fira Code", Consolas, monospace;
+            font-size: 13px;
+        }
+
+        /* Inline code (not inside a pre block) */
+        .message code:not(pre code) {
+            background: #111;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+
+        /* --- Input area --- */
+        .input-area {
+            padding: 16px 20px;
+            background: #16213e;
+            border-top: 1px solid #0f3460;
+            display: flex;
+            gap: 10px;
+        }
+
+        .input-area textarea {
+            flex: 1;
+            background: #1a1a2e;
+            border: 1px solid #0f3460;
+            color: #e0e0e0;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: none;
+            min-height: 44px;
+            max-height: 200px;
+            line-height: 1.4;
+        }
+
+        .input-area textarea:focus {
+            outline: none;
+            border-color: #e94560;
+        }
+
+        .input-area button {
+            background: #e94560;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: background 0.2s;
+            align-self: flex-end;
+        }
+
+        .input-area button:hover { background: #d63851; }
+
+        .input-area button:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+
+        /* --- Scrollbar styling --- */
+        .chat-area::-webkit-scrollbar { width: 8px; }
+        .chat-area::-webkit-scrollbar-track { background: #1a1a2e; }
+        .chat-area::-webkit-scrollbar-thumb { background: #0f3460; border-radius: 4px; }
+        .chat-area::-webkit-scrollbar-thumb:hover { background: #e94560; }
+
+        /* --- Empty state --- */
+        .empty-state {
+            text-align: center;
+            margin: auto;
+            color: #555;
+        }
+
+        .empty-state h2 {
+            font-size: 24px;
+            margin-bottom: 8px;
+            color: #666;
+        }
+
+        .empty-state p {
+            font-size: 14px;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Top navigation bar -->
+    <div class="topbar">
+        <h1>OpenSource Router</h1>
+        <div class="topbar-controls">
+            <button onclick="newConversation()">New Chat</button>
+            <button onclick="escalateToCloud()">Escalate to Claude</button>
+            <button onclick="toggleHistory()">History</button>
+        </div>
+    </div>
+
+    <!-- Project directory input -->
+    <div class="project-bar">
+        <label>Project directory:</label>
+        <input type="text" id="projectDir" placeholder="C:\path\to\your\project"
+               onchange="updateProjectDir()">
+    </div>
+
+    <!-- Main chat area where messages appear -->
+    <div class="chat-area" id="chatArea">
+        <div class="empty-state" id="emptyState">
+            <h2>OpenSource Router</h2>
+            <p>Type a coding task below. Simple tasks go to DeepSeek (free, local).</p>
+            <p>Complex tasks go to Claude Code (powerful, paid).</p>
+        </div>
+    </div>
+
+    <!-- Input area at the bottom -->
+    <div class="input-area">
+        <textarea id="promptInput"
+                  placeholder="Describe your coding task..."
+                  rows="1"
+                  onkeydown="handleKeyDown(event)"
+                  oninput="autoResize(this)"></textarea>
+        <button id="sendBtn" onclick="sendMessage()">Send</button>
+    </div>
+
+    <script>
+        // --- State ---
+        let isStreaming = false;  // True while waiting for a response
+
+        // --- DOM references ---
+        const chatArea = document.getElementById("chatArea");
+        const promptInput = document.getElementById("promptInput");
+        const sendBtn = document.getElementById("sendBtn");
+        const emptyState = document.getElementById("emptyState");
+        const projectDirInput = document.getElementById("projectDir");
+
+        // Load saved project dir on page load
+        fetch("/settings")
+            .then(r => r.json())
+            .then(data => {
+                if (data.project_dir) {
+                    projectDirInput.value = data.project_dir;
+                }
+            })
+            .catch(() => {});
+
+
+        // --- Auto-resize textarea as user types ---
+        function autoResize(el) {
+            el.style.height = "auto";
+            el.style.height = Math.min(el.scrollHeight, 200) + "px";
+        }
+
+
+        // --- Handle Enter to send, Shift+Enter for new line ---
+        function handleKeyDown(event) {
+            if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+
+
+        // --- Add a message bubble to the chat ---
+        function addMessage(role, content, extras = {}) {
+            // Hide the empty state placeholder when first message appears
+            if (emptyState) emptyState.style.display = "none";
+
+            const msgDiv = document.createElement("div");
+            msgDiv.className = `message ${role}`;
+
+            // Build header with badges (model name, score, review status)
+            let header = "";
+            if (extras.model) {
+                header += `<span class="model-badge ${extras.model}">${extras.model}</span>`;
+            }
+            if (extras.score) {
+                header += `<span class="score-badge">Score: ${extras.score}/10</span>`;
+            }
+            if (extras.review) {
+                const reviewClass = extras.review.includes("passed") ? "passed" : "failed";
+                header += `<span class="review-badge ${reviewClass}">${extras.review}</span>`;
+            }
+
+            // Format the content — convert markdown code blocks to HTML
+            const formattedContent = formatContent(content);
+
+            msgDiv.innerHTML = (header ? header + "<br>" : "") + formattedContent;
+            chatArea.appendChild(msgDiv);
+            chatArea.scrollTop = chatArea.scrollHeight;
+            return msgDiv;
+        }
+
+
+        // --- Add a status line (italic, gray) ---
+        function addStatus(text) {
+            const statusDiv = document.createElement("div");
+            statusDiv.className = "status-line";
+            statusDiv.innerHTML = `<span class="spinner"></span>${escapeHtml(text)}`;
+            chatArea.appendChild(statusDiv);
+            chatArea.scrollTop = chatArea.scrollHeight;
+            return statusDiv;
+        }
+
+
+        // --- Remove the last status line (replace spinner with final status) ---
+        function removeLastStatus() {
+            const statuses = chatArea.querySelectorAll(".status-line");
+            if (statuses.length > 0) {
+                statuses[statuses.length - 1].remove();
+            }
+        }
+
+
+        // --- Format content: convert ```code blocks``` to <pre><code> ---
+        function formatContent(text) {
+            // Escape HTML first to prevent XSS
+            let safe = escapeHtml(text);
+
+            // Convert ``` code blocks to <pre><code>
+            safe = safe.replace(/```(\w*)\n([\s\S]*?)```/g,
+                (match, lang, code) => `<pre><code>${code.trim()}</code></pre>`);
+
+            // Convert inline `code` to <code>
+            safe = safe.replace(/`([^`]+)`/g, "<code>$1</code>");
+
+            return safe;
+        }
+
+
+        // --- Escape HTML to prevent XSS ---
+        function escapeHtml(text) {
+            const div = document.createElement("div");
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+
+        // --- Send a message to the router ---
+        async function sendMessage() {
+            const prompt = promptInput.value.trim();
+            if (!prompt || isStreaming) return;
+
+            // Show the user's message in the chat
+            addMessage("user", prompt);
+
+            // Clear input and disable send button while processing
+            promptInput.value = "";
+            promptInput.style.height = "auto";
+            isStreaming = true;
+            sendBtn.disabled = true;
+
+            // Track metadata for the response message
+            let currentModel = null;
+            let currentScore = null;
+            let currentReview = null;
+            let responseText = "";
+            let responseDiv = null;
+            let statusDiv = null;
+
+            try {
+                // Send the prompt to the server and open an SSE stream
+                const response = await fetch("/send", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        prompt: prompt,
+                        project_dir: projectDirInput.value.trim(),
+                    }),
+                });
+
+                // Read the SSE stream line by line
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = "";
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+
+                    // Process complete SSE messages (separated by double newlines)
+                    const messages = buffer.split("\n\n");
+                    buffer = messages.pop();  // Keep the incomplete last chunk
+
+                    for (const msg of messages) {
+                        if (!msg.trim()) continue;
+
+                        // Parse the SSE event type and data
+                        const eventMatch = msg.match(/event: (\w+)/);
+                        const dataMatch = msg.match(/data: (.*)/);
+                        if (!eventMatch || !dataMatch) continue;
+
+                        const eventType = eventMatch[1];
+                        let eventData;
+                        try {
+                            eventData = JSON.parse(dataMatch[1]);
+                        } catch {
+                            eventData = dataMatch[1];
+                        }
+
+                        // Handle each event type
+                        switch (eventType) {
+                            case "status":
+                                // Show/update status spinner
+                                if (statusDiv) statusDiv.remove();
+                                statusDiv = addStatus(eventData);
+                                break;
+
+                            case "model":
+                                // Which model is handling this task
+                                currentModel = eventData;
+                                break;
+
+                            case "score":
+                                // Complexity score from classifier
+                                currentScore = eventData;
+                                break;
+
+                            case "review":
+                                // Review result from testing agent
+                                currentReview = eventData;
+                                break;
+
+                            case "token":
+                                // A chunk of streamed text from DeepSeek
+                                if (!responseDiv) {
+                                    // Create the response message bubble on first token
+                                    if (statusDiv) { statusDiv.remove(); statusDiv = null; }
+                                    responseDiv = addMessage("assistant", "", {
+                                        model: currentModel,
+                                        score: currentScore,
+                                    });
+                                }
+                                responseText += eventData;
+                                // Update the bubble content with all tokens so far
+                                let header = "";
+                                if (currentModel) {
+                                    header += `<span class="model-badge ${currentModel}">${currentModel}</span>`;
+                                }
+                                if (currentScore) {
+                                    header += `<span class="score-badge">Score: ${currentScore}/10</span>`;
+                                }
+                                responseDiv.innerHTML = (header ? header + "<br>" : "") + formatContent(responseText);
+                                chatArea.scrollTop = chatArea.scrollHeight;
+                                break;
+
+                            case "done":
+                                // Final complete response
+                                if (statusDiv) { statusDiv.remove(); statusDiv = null; }
+                                if (!responseDiv) {
+                                    // Claude responses come as a single 'done' event (no streaming)
+                                    responseDiv = addMessage("assistant", eventData, {
+                                        model: currentModel,
+                                        score: currentScore,
+                                        review: currentReview,
+                                    });
+                                } else {
+                                    // DeepSeek response was streamed — add review badge if present
+                                    if (currentReview) {
+                                        const reviewClass = currentReview.includes("passed") ? "passed" : "failed";
+                                        const badge = `<span class="review-badge ${reviewClass}">${currentReview}</span>`;
+                                        // Insert badge after existing badges
+                                        const firstBr = responseDiv.innerHTML.indexOf("<br>");
+                                        if (firstBr !== -1) {
+                                            responseDiv.innerHTML =
+                                                responseDiv.innerHTML.slice(0, firstBr) +
+                                                badge +
+                                                responseDiv.innerHTML.slice(firstBr);
+                                        }
+                                    }
+                                }
+                                responseText = "";
+                                responseDiv = null;
+                                break;
+
+                            case "error":
+                                // Something went wrong
+                                if (statusDiv) { statusDiv.remove(); statusDiv = null; }
+                                addMessage("assistant", "Error: " + eventData, { model: "router" });
+                                break;
+                        }
+                    }
+                }
+            } catch (error) {
+                if (statusDiv) statusDiv.remove();
+                addMessage("assistant", "Connection error: " + error.message, { model: "router" });
+            }
+
+            // Re-enable input
+            isStreaming = false;
+            sendBtn.disabled = false;
+            promptInput.focus();
+        }
+
+
+        // --- Start a new conversation ---
+        async function newConversation() {
+            try {
+                await fetch("/new", { method: "POST" });
+            } catch {}
+
+            // Clear the chat area
+            chatArea.innerHTML = `
+                <div class="empty-state" id="emptyState">
+                    <h2>OpenSource Router</h2>
+                    <p>Type a coding task below. Simple tasks go to DeepSeek (free, local).</p>
+                    <p>Complex tasks go to Claude Code (powerful, paid).</p>
+                </div>
+            `;
+            promptInput.focus();
+        }
+
+
+        // --- Escalate current conversation to Claude ---
+        async function escalateToCloud() {
+            if (isStreaming) return;
+
+            isStreaming = true;
+            sendBtn.disabled = true;
+
+            const statusDiv = addStatus("Escalating to Claude Code...");
+
+            try {
+                const response = await fetch("/escalate", { method: "POST" });
+                const data = await response.json();
+                statusDiv.remove();
+
+                if (data.error) {
+                    addMessage("assistant", data.error, { model: "router" });
+                } else {
+                    addMessage("assistant", data.result, { model: "claude" });
+                }
+            } catch (error) {
+                statusDiv.remove();
+                addMessage("assistant", "Escalation error: " + error.message, { model: "router" });
+            }
+
+            isStreaming = false;
+            sendBtn.disabled = false;
+            promptInput.focus();
+        }
+
+
+        // --- Toggle history panel ---
+        async function toggleHistory() {
+            // Check if history is already showing
+            const existing = document.querySelector(".history-panel");
+            if (existing) {
+                existing.remove();
+                return;
+            }
+
+            try {
+                const response = await fetch("/history?limit=20");
+                const examples = await response.json();
+
+                const panel = document.createElement("div");
+                panel.className = "history-panel";
+                panel.style.cssText = `
+                    position: fixed; top: 0; right: 0; width: 400px; height: 100%;
+                    background: #16213e; border-left: 2px solid #0f3460; padding: 20px;
+                    overflow-y: auto; z-index: 1000;
+                `;
+
+                let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                    <h3 style="color:#e94560;">Example Bank History</h3>
+                    <button onclick="this.closest('.history-panel').remove()"
+                            style="background:none;border:none;color:#888;font-size:20px;cursor:pointer;">x</button>
+                </div>`;
+
+                if (examples.length === 0) {
+                    html += `<p style="color:#888;">No examples yet. Run some tasks first!</p>`;
+                } else {
+                    for (const ex of examples) {
+                        const modelColor = ex.routed_to === "claude" ? "#ce93d8" : "#81c784";
+                        html += `
+                            <div style="border:1px solid #0f3460;border-radius:8px;padding:10px;margin-bottom:10px;font-size:13px;">
+                                <div style="color:${modelColor};font-weight:600;margin-bottom:4px;">
+                                    ${escapeHtml(ex.routed_to.toUpperCase())} (score: ${ex.complexity_score}/10)
+                                    ${ex.was_escalated ? '<span style="color:#ef9a9a;"> escalated</span>' : ""}
+                                </div>
+                                <div style="color:#aaa;margin-bottom:6px;">${escapeHtml(ex.user_prompt || "").substring(0, 100)}...</div>
+                                <div style="color:#666;font-size:11px;">${ex.timestamp || ""}</div>
+                                ${ex.techniques ? `<div style="color:#64b5f6;font-size:11px;margin-top:4px;">${escapeHtml(ex.techniques)}</div>` : ""}
+                            </div>
+                        `;
+                    }
+                }
+
+                panel.innerHTML = html;
+                document.body.appendChild(panel);
+            } catch (error) {
+                console.error("Failed to load history:", error);
+            }
+        }
+
+
+        // --- Update project directory on the server ---
+        async function updateProjectDir() {
+            const dir = projectDirInput.value.trim();
+            try {
+                await fetch("/settings", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ project_dir: dir }),
+                });
+            } catch {}
+        }
+
+
+        // --- Focus the input on page load ---
+        promptInput.focus();
+    </script>
+</body>
+</html>
