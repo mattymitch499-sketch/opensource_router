@@ -22,7 +22,7 @@ REVIEWER_MODEL = "qwen2.5:3b"
 CODER_MODEL = "deepseek-r1:14b"
 
 # --- Claude Code CLI command ---
-CLAUDE_COMMAND = r"C:\Users\Matthew Mitchell\AppData\Roaming\npm\claude.cmd"
+CLAUDE_COMMAND = "claude"
 
 # --- File paths for system prompts ---
 _PROMPTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "prompts")
